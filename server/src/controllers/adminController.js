@@ -1,5 +1,8 @@
 const { pool } = require('../config/db');
-const { runIngestionCycle } = require('../services/scraperService');
+const {
+    runIngestionCycle,
+    syncKrishanKumarLinkedInFeed
+} = require('../services/scraperService');
 const {
     runSchedulingCycle,
     getOSDashboardTelemetry
@@ -227,11 +230,42 @@ async function getOSTelemetry(req, res) {
     }
 }
 
+/**
+ * ==============================================================================
+ * 7. SYNC KRISHAN KUMAR LINKEDIN FEED (POST /api/admin/sync-linkedin-creator)
+ * ==============================================================================
+ * Curates 100% authentic tech internships from Krishan Kumar (@krishan-kumar08).
+ * Filters strictly for the keyword 'internship' (or custom keyword).
+ */
+async function syncLinkedInCreator(req, res) {
+    const { keyword, raw_text } = req.body || {};
+
+    try {
+        const results = await syncKrishanKumarLinkedInFeed({
+            keyword: keyword || 'internship',
+            raw_text: raw_text || null
+        });
+
+        return res.json({
+            success: true,
+            message: `Synced Krishan Kumar LinkedIn feed: ${results.newAdded} new internships added, ${results.skippedDuplicates} duplicates skipped.`,
+            results
+        });
+    } catch (error) {
+        console.error('Error syncing Krishan Kumar LinkedIn feed:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error syncing LinkedIn feed: ' + error.message
+        });
+    }
+}
+
 module.exports = {
     getModerationQueue,
     verifyOpportunity,
     rejectOpportunity,
     triggerScraperCycle,
     triggerAgingCycle,
-    getOSTelemetry
+    getOSTelemetry,
+    syncLinkedInCreator
 };

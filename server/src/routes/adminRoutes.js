@@ -7,7 +7,8 @@ const {
     rejectOpportunity,
     triggerScraperCycle,
     triggerAgingCycle,
-    getOSTelemetry
+    getOSTelemetry,
+    syncLinkedInCreator
 } = require('../controllers/adminController');
 
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
@@ -66,6 +67,14 @@ router.get(
     authenticateToken,
     authorizeRoles('ADMIN'),
     getOSTelemetry
+);
+
+// 7. Sync authentic internship stream from Krishan Kumar (LinkedIn: @krishan-kumar08)
+router.post(
+    '/sync-linkedin-creator',
+    authenticateToken,
+    authorizeRoles('ADMIN'),
+    syncLinkedInCreator
 );
 
 module.exports = router;

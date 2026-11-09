@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const { pool, testConnection } = require('./config/db');
@@ -17,7 +18,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/assets', express.static(path.join(__dirname, '../../assets')));
 
 // ==============================================================================
-// 2. ROUTE MOUNTING (PHASES 2, 3 & 4)
+// 2. ROUTE MOUNTING (PHASES 2, 3, 4 & 5)
 // ==============================================================================
 const authRoutes = require('./routes/authRoutes');
 const studentRoutes = require('./routes/studentRoutes');
@@ -53,21 +54,36 @@ app.get('/api/health', async (req, res) => {
     });
 });
 
-app.get('/', (req, res) => {
-    res.json({
-        message: 'Welcome to CampusForge Backend API — Graphic Era Hill University, Bhimtal',
-        healthCheck: '/api/health',
-        documentation: 'See database/schema.sql and project documentation for full schema'
+// ==============================================================================
+// 4. CLIENT STATIC HOSTING (Single-Page App)
+// ==============================================================================
+const clientDistPath = path.join(__dirname, '../../client/dist');
+if (fs.existsSync(clientDistPath)) {
+    app.use(express.static(clientDistPath));
+    app.get('*', (req, res, next) => {
+        if (req.path.startsWith('/api') || req.path.startsWith('/assets')) {
+            return next();
+        }
+        res.sendFile(path.join(clientDistPath, 'index.html'));
     });
-});
+} else {
+    app.get('/', (req, res) => {
+        res.json({
+            message: 'Welcome to CampusForge Backend API — Graphic Era Hill University, Bhimtal',
+            healthCheck: '/api/health',
+            documentation: 'See database/schema.sql and project documentation for full schema'
+        });
+    });
+}
 
 // ==============================================================================
-// 4. SERVER STARTUP & DATABASE PING
+// 5. SERVER STARTUP & DATABASE PING
 // ==============================================================================
 app.listen(PORT, async () => {
     console.log('===============================================================');
-    console.log(`  CAMPUSFORGE BACKEND SERVER RUNNING ON PORT ${PORT}`);
+    console.log(`  CAMPUSFORGE SERVER RUNNING ON PORT ${PORT}`);
     console.log(`  Institution: Graphic Era Hill University, Bhimtal`);
+    console.log(`  Web Application: http://localhost:${PORT}`);
     console.log(`  Health Check: http://localhost:${PORT}/api/health`);
     console.log('===============================================================');
     await testConnection();
