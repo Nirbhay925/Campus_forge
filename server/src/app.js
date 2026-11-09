@@ -9,29 +9,25 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // ==============================================================================
-// 1. CORE MIDDLEWARE EXPLANATION
+// 1. CORE MIDDLEWARE
 // ==============================================================================
-// CORS: Allows our React frontend (running on a different port like 5173) to communicate
-// with this Express API server without browser security blocks.
 app.use(cors());
-
-// Express JSON Parser: Automatically parses incoming JSON request bodies into `req.body`
 app.use(express.json());
-
-// Express URL-Encoded Parser: Parses standard HTML form data submissions
 app.use(express.urlencoded({ extended: true }));
-
-// Serve static assets (e.g. GEHU campus photos)
 app.use('/assets', express.static(path.join(__dirname, '../../assets')));
 
 // ==============================================================================
-// 2. ROUTE MOUNTING (PHASE 2 & PHASE 3)
+// 2. ROUTE MOUNTING (PHASES 2, 3 & 4)
 // ==============================================================================
 const authRoutes = require('./routes/authRoutes');
 const studentRoutes = require('./routes/studentRoutes');
+const facultyRoutes = require('./routes/facultyRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/students', studentRoutes);
+app.use('/api/faculty', facultyRoutes);
+app.use('/api/admin', adminRoutes);
 
 // ==============================================================================
 // 3. HEALTH & SYSTEM DIAGNOSTIC ROUTES
@@ -57,7 +53,6 @@ app.get('/api/health', async (req, res) => {
     });
 });
 
-// Root welcome route
 app.get('/', (req, res) => {
     res.json({
         message: 'Welcome to CampusForge Backend API — Graphic Era Hill University, Bhimtal',
@@ -67,7 +62,7 @@ app.get('/', (req, res) => {
 });
 
 // ==============================================================================
-// 3. SERVER STARTUP & DATABASE PING
+// 4. SERVER STARTUP & DATABASE PING
 // ==============================================================================
 app.listen(PORT, async () => {
     console.log('===============================================================');
