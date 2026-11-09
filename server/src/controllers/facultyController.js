@@ -7,6 +7,7 @@ const { parseWhatsAppMessage } = require('../services/whatsappParser');
  * ==============================================================================
  * Takes raw unstructured WhatsApp text and returns auto-extracted fields
  * so the professor can review and confirm before submitting.
+ * Supports both single notices and multi-link digests with zero details!
  */
 async function parseWhatsAppPreview(req, res) {
     const { raw_message } = req.body;
@@ -22,7 +23,12 @@ async function parseWhatsAppPreview(req, res) {
         const parsed = parseWhatsAppMessage(raw_message);
         return res.json({
             success: true,
-            message: 'WhatsApp circular parsed successfully!',
+            message: parsed.isBatch
+                ? `Detected ${parsed.count} distinct opportunities in this WhatsApp message!`
+                : 'WhatsApp circular parsed successfully!',
+            isBatch: parsed.isBatch,
+            count: parsed.count,
+            opportunities: parsed.opportunities,
             parsedData: parsed
         });
     } catch (error) {
@@ -38,7 +44,7 @@ async function parseWhatsAppPreview(req, res) {
  * ==============================================================================
  * 2. POST CAMPUS DRIVE (POST /api/faculty/post-drive)
  * ==============================================================================
- * Submits the drive into MySQL `internships` as PENDING for TPO approval,
+ * Submits a single drive into MySQL `internships` as PENDING for TPO approval,
  * and initializes its Operating System queue state in `mlfq_scheduler_state`.
  */
 async function postDrive(req, res) {
@@ -106,7 +112,6 @@ async function postDrive(req, res) {
         if (Array.isArray(required_skills) && required_skills.length > 0) {
             for (const skillName of required_skills) {
                 const cleanName = skillName.trim();
-                // Find or insert skill
                 let [skillRows] = await connection.query('SELECT id FROM skills WHERE skill_name = ?', [cleanName]);
                 let skillId;
                 if (skillRows.length > 0) {
@@ -138,10 +143,10 @@ async function postDrive(req, res) {
         if (connection) {
             await connection.rollback();
         }
-        console.error('Error posting faculty drive:', error);
+        console.error('Error posting drive:', error);
         return res.status(500).json({
             success: false,
-            message: 'Internal server error posting drive: ' + error.message
+            message: 'Internal server error posting drive.'
         });
     } finally {
         if (connection) {
@@ -152,21 +157,151 @@ async function postDrive(req, res) {
 
 /**
  * ==============================================================================
- * 3. GET MY POSTED DRIVES (GET /api/faculty/my-drives)
+ * 3. BATCH POST CAMPUS DRIVES (POST /api/faculty/batch-post-drives)
  * ==============================================================================
- * Allows professor to see their submissions, status (PENDING/VERIFIED), and student clicks.
+ * Enables faculty to ingest multiple opportunities from a single multi-link broadcast
+ * in one click via a single atomic database transaction!
+ */
+async function batchPostDrives(req, res) {
+    const { opportunities } = req.body;
+
+    if (!Array.isArray(opportunities) || opportunities.length === 0) {
+        return res.status(400).json({
+            success: false,
+            message: 'Please provide an array of opportunities to batch-post.'
+        });
+    }
+
+    const facultyUserId = req.user.id;
+    let connection;
+
+    try {
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        const createdDriveIds = [];
+
+        for (const opp of opportunities) {
+            const {
+                title,
+                company_name,
+                work_mode,
+                location,
+                stipend_amount,
+                min_cgpa,
+                eligible_branches,
+                apply_url,
+                description,
+                deadline,
+                required_skills
+            } = opp;
+
+            if (!title || !company_name || !apply_url) continue;
+
+            const [insertRes] = await connection.query(
+                `INSERT INTO internships 
+                 (title, company_name, work_mode, location, stipend_amount, min_cgpa, eligible_branches, apply_url, description, source, posted_by_faculty_id, verification_status, deadline)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'FACULTY_WHATSAPP', ?, 'PENDING', ?)`,
+                [
+                    title.trim(),
+                    company_name.trim(),
+                    work_mode || 'HYBRID',
+                    location ? location.trim() : 'Off-Campus / Multiple Locations',
+                    stipend_amount ? stipend_amount.trim() : 'Competitive / Industry Standard',
+                    parseFloat(min_cgpa) || 0.0,
+                    eligible_branches ? eligible_branches.trim() : 'CSE,IT,ECE',
+                    apply_url.trim(),
+                    description ? description.trim() : `Off-campus opportunity shared by faculty for ${company_name} - ${title}.`,
+                    facultyUserId,
+                    deadline ? new Date(deadline) : new Date(Date.now() + 14 * 86400000)
+                ]
+            );
+
+            const newInternshipId = insertRes.insertId;
+            createdDriveIds.push(newInternshipId);
+
+            // Initialize OS State in `mlfq_scheduler_state`
+            await connection.query(
+                `INSERT INTO mlfq_scheduler_state 
+                 (internship_id, current_queue, quantum_remaining_hours, total_impressions, apply_clicks, starvation_counter, aging_boost_score, final_priority_score)
+                 VALUES (?, 0, 48, 0, 0, 0, 0.00, 95.00)`,
+                [newInternshipId]
+            );
+
+            // Connect required skills
+            if (Array.isArray(required_skills) && required_skills.length > 0) {
+                for (const skillName of required_skills) {
+                    const cleanName = skillName.trim();
+                    let [skillRows] = await connection.query('SELECT id FROM skills WHERE skill_name = ?', [cleanName]);
+                    let skillId;
+                    if (skillRows.length > 0) {
+                        skillId = skillRows[0].id;
+                    } else {
+                        const [newSkill] = await connection.query('INSERT INTO skills (skill_name) VALUES (?)', [cleanName]);
+                        skillId = newSkill.insertId;
+                    }
+
+                    await connection.query(
+                        `INSERT INTO internship_required_skills (internship_id, skill_id, is_mandatory)
+                         VALUES (?, ?, TRUE)
+                         ON DUPLICATE KEY UPDATE is_mandatory = TRUE`,
+                        [newInternshipId, skillId]
+                    );
+                }
+            }
+        }
+
+        await connection.commit();
+
+        return res.status(201).json({
+            success: true,
+            message: `Successfully posted ${createdDriveIds.length} opportunities into the TPO moderation queue!`,
+            createdCount: createdDriveIds.length,
+            driveIds: createdDriveIds,
+            verificationStatus: 'PENDING'
+        });
+
+    } catch (error) {
+        if (connection) await connection.rollback();
+        console.error('Error in batch post drives:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Database error while batch posting drives.'
+        });
+    } finally {
+        if (connection) connection.release();
+    }
+}
+
+/**
+ * ==============================================================================
+ * 4. GET MY POSTED DRIVES (GET /api/faculty/my-drives)
+ * ==============================================================================
+ * Returns all drives submitted by the logged-in faculty coordinator
+ * along with TPO verification status and student impression telemetry.
  */
 async function getMyDrives(req, res) {
     const facultyUserId = req.user.id;
 
     try {
         const [drives] = await pool.query(
-            `SELECT i.id, i.title, i.company_name, i.stipend_amount, i.min_cgpa, 
-                    i.eligible_branches, i.verification_status, i.created_at, i.deadline,
-                    COALESCE(m.apply_clicks, 0) AS total_student_clicks,
-                    COALESCE(m.current_queue, 0) AS os_queue
+            `SELECT 
+                i.id,
+                i.title,
+                i.company_name,
+                i.work_mode,
+                i.location,
+                i.stipend_amount,
+                i.min_cgpa,
+                i.eligible_branches,
+                i.verification_status,
+                i.created_at,
+                i.deadline,
+                s.current_queue,
+                s.total_impressions,
+                s.apply_clicks
              FROM internships i
-             LEFT JOIN mlfq_scheduler_state m ON i.id = m.internship_id
+             LEFT JOIN mlfq_scheduler_state s ON i.id = s.internship_id
              WHERE i.posted_by_faculty_id = ?
              ORDER BY i.created_at DESC`,
             [facultyUserId]
@@ -181,7 +316,7 @@ async function getMyDrives(req, res) {
         console.error('Error fetching faculty drives:', error);
         return res.status(500).json({
             success: false,
-            message: 'Internal server error fetching your drives.'
+            message: 'Database error fetching drives.'
         });
     }
 }
@@ -189,5 +324,6 @@ async function getMyDrives(req, res) {
 module.exports = {
     parseWhatsAppPreview,
     postDrive,
+    batchPostDrives,
     getMyDrives
 };

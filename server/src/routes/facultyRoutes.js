@@ -4,6 +4,7 @@ const router = express.Router();
 const {
     parseWhatsAppPreview,
     postDrive,
+    batchPostDrives,
     getMyDrives
 } = require('../controllers/facultyController');
 
@@ -17,7 +18,7 @@ const { authenticateToken, authorizeRoles } = require('../middleware/auth');
  * ==============================================================================
  */
 
-// 1. Preview raw WhatsApp circular auto-extraction
+// 1. Preview raw WhatsApp circular auto-extraction (supports single or multi-link batch)
 router.post(
     '/parse-whatsapp',
     authenticateToken,
@@ -25,7 +26,7 @@ router.post(
     parseWhatsAppPreview
 );
 
-// 2. Submit new campus drive
+// 2. Submit single campus drive
 router.post(
     '/post-drive',
     authenticateToken,
@@ -33,7 +34,15 @@ router.post(
     postDrive
 );
 
-// 3. View my posted drives and student engagement
+// 3. Batch submit multiple drives from a multi-link broadcast in 1 click
+router.post(
+    '/batch-post-drives',
+    authenticateToken,
+    authorizeRoles('FACULTY', 'ADMIN'),
+    batchPostDrives
+);
+
+// 4. View my posted drives and student engagement
 router.get(
     '/my-drives',
     authenticateToken,
