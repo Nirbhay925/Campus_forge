@@ -25,10 +25,13 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/assets', express.static(path.join(__dirname, '../../assets')));
 
 // ==============================================================================
-// 2. ROUTE MOUNTING (PHASE 2 AUTHENTICATION)
+// 2. ROUTE MOUNTING (PHASE 2 & PHASE 3)
 // ==============================================================================
 const authRoutes = require('./routes/authRoutes');
+const studentRoutes = require('./routes/studentRoutes');
+
 app.use('/api/auth', authRoutes);
+app.use('/api/students', studentRoutes);
 
 // ==============================================================================
 // 3. HEALTH & SYSTEM DIAGNOSTIC ROUTES
