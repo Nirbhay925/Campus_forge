@@ -5,7 +5,9 @@ const {
     uploadAndParseResume,
     getStudentSkills,
     addSkillManually,
-    removeSkill
+    removeSkill,
+    getPersonalizedFeed,
+    applyToInternship
 } = require('../controllers/studentController');
 
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
@@ -20,7 +22,6 @@ const { uploadResumeMiddleware } = require('../middleware/upload');
  */
 
 // 1. Upload & Parse PDF Resume
-// Middleware chain: authenticateToken -> authorizeRoles('STUDENT') -> upload.single('resume') -> uploadAndParseResume
 router.post(
     '/resume',
     authenticateToken,
@@ -51,6 +52,22 @@ router.delete(
     authenticateToken,
     authorizeRoles('STUDENT'),
     removeSkill
+);
+
+// 5. Get personalized student feed (ranked by Skill Match + OS MLFQ Priority + Aging Boost)
+router.get(
+    '/feed',
+    authenticateToken,
+    authorizeRoles('STUDENT'),
+    getPersonalizedFeed
+);
+
+// 6. Record 'Apply' click for an internship (increments clicks in MLFQ state)
+router.post(
+    '/apply/:internshipId',
+    authenticateToken,
+    authorizeRoles('STUDENT'),
+    applyToInternship
 );
 
 module.exports = router;

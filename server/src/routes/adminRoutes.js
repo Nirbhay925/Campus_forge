@@ -5,7 +5,9 @@ const {
     getModerationQueue,
     verifyOpportunity,
     rejectOpportunity,
-    triggerScraperCycle
+    triggerScraperCycle,
+    triggerAgingCycle,
+    getOSTelemetry
 } = require('../controllers/adminController');
 
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
@@ -48,6 +50,22 @@ router.post(
     authenticateToken,
     authorizeRoles('ADMIN'),
     triggerScraperCycle
+);
+
+// 5. Trigger OS aging and MLFQ cycle on demand (Viva Demonstration)
+router.post(
+    '/trigger-aging',
+    authenticateToken,
+    authorizeRoles('ADMIN'),
+    triggerAgingCycle
+);
+
+// 6. Get live OS scheduling telemetry and audit logs
+router.get(
+    '/os-telemetry',
+    authenticateToken,
+    authorizeRoles('ADMIN'),
+    getOSTelemetry
 );
 
 module.exports = router;

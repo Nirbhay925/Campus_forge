@@ -1,5 +1,9 @@
 const { pool } = require('../config/db');
 const { runIngestionCycle } = require('../services/scraperService');
+const {
+    runSchedulingCycle,
+    getOSDashboardTelemetry
+} = require('../services/osScheduler');
 
 /**
  * ==============================================================================
@@ -14,39 +18,44 @@ async function getModerationQueue(req, res) {
                     i.stipend_amount, i.min_cgpa, i.eligible_branches, i.apply_url,
                     i.description, i.source, i.created_at, i.deadline,
                     u.full_name AS posted_by_name,
-                    f.department AS faculty_dept
+                    GROUP_CONCAT(sk.skill_name) AS required_skills
              FROM internships i
-             LEFT JOIN faculty f ON i.posted_by_faculty_id = f.user_id
-             LEFT JOIN users u ON f.user_id = u.id
+             LEFT JOIN users u ON i.posted_by_faculty_id = u.id
+             LEFT JOIN internship_required_skills irs ON i.id = irs.internship_id
+             LEFT JOIN skills sk ON irs.skill_id = sk.id
              WHERE i.verification_status = 'PENDING'
+             GROUP BY i.id
              ORDER BY i.created_at DESC`
         );
 
         return res.json({
             success: true,
             count: pendingJobs.length,
-            pendingJobs
+            opportunities: pendingJobs.map(job => ({
+                ...job,
+                required_skills: job.required_skills ? job.required_skills.split(',') : []
+            }))
         });
     } catch (error) {
         console.error('Error fetching moderation queue:', error);
         return res.status(500).json({
             success: false,
-            message: 'Internal server error fetching moderation queue.'
+            message: 'Database error fetching moderation queue.'
         });
     }
 }
 
 /**
  * ==============================================================================
- * 2. VERIFY OPPORTUNITY (PATCH /api/admin/moderation/:id/verify)
+ * 2. 1-CLICK VERIFY OPPORTUNITY (PATCH /api/admin/moderation/:id/verify)
  * ==============================================================================
- * 1-Click Approval: Turns a PENDING posting into a VERIFIED live posting!
+ * Approves a pending drive, marks it as VERIFIED, and logs the gatekeeper action.
  */
 async function verifyOpportunity(req, res) {
-    const internshipId = parseInt(req.params.id, 10);
+    const internshipId = parseInt(req.params.id);
     const adminUserId = req.user.id;
 
-    if (isNaN(internshipId)) {
+    if (!internshipId || isNaN(internshipId)) {
         return res.status(400).json({
             success: false,
             message: 'Invalid internship ID.'
@@ -105,11 +114,12 @@ async function verifyOpportunity(req, res) {
  * ==============================================================================
  * 3. REJECT OPPORTUNITY (PATCH /api/admin/moderation/:id/reject)
  * ==============================================================================
+ * Rejects an invalid or fraudulent circular and archives it.
  */
 async function rejectOpportunity(req, res) {
-    const internshipId = parseInt(req.params.id, 10);
+    const internshipId = parseInt(req.params.id);
 
-    if (isNaN(internshipId)) {
+    if (!internshipId || isNaN(internshipId)) {
         return res.status(400).json({
             success: false,
             message: 'Invalid internship ID.'
@@ -164,9 +174,64 @@ async function triggerScraperCycle(req, res) {
     }
 }
 
+/**
+ * ==============================================================================
+ * 5. TRIGGER AGING & SCHEDULING CYCLE (POST /api/admin/trigger-aging)
+ * ==============================================================================
+ * For live viva demonstration! Allows admin / student presenter to simulate
+ * clock ticks and demonstrate dynamic aging, quantum expiration, and starvation rescue.
+ */
+async function triggerAgingCycle(req, res) {
+    const { time_step_hours, force_epoch_boost, starvation_threshold } = req.body || {};
+
+    try {
+        const results = await runSchedulingCycle({
+            timeStepHours: parseInt(time_step_hours) || 24,
+            forceEpochBoost: Boolean(force_epoch_boost),
+            starvationThreshold: parseInt(starvation_threshold) || 3
+        });
+
+        return res.json({
+            success: true,
+            message: `Operating System scheduling cycle executed! Evaluated ${results.totalEvaluated} drives.`,
+            cycleSummary: results
+        });
+    } catch (error) {
+        console.error('Error triggering aging cycle:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error executing OS scheduling cycle: ' + error.message
+        });
+    }
+}
+
+/**
+ * ==============================================================================
+ * 6. GET OS TELEMETRY DASHBOARD (GET /api/admin/os-telemetry)
+ * ==============================================================================
+ * Returns live MLFQ queue distributions, starving drives, and audit log history.
+ */
+async function getOSTelemetry(req, res) {
+    try {
+        const telemetry = await getOSDashboardTelemetry();
+        return res.json({
+            success: true,
+            telemetry
+        });
+    } catch (error) {
+        console.error('Error fetching OS telemetry:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error retrieving OS telemetry.'
+        });
+    }
+}
+
 module.exports = {
     getModerationQueue,
     verifyOpportunity,
     rejectOpportunity,
-    triggerScraperCycle
+    triggerScraperCycle,
+    triggerAgingCycle,
+    getOSTelemetry
 };
