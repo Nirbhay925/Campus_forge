@@ -86,7 +86,7 @@ async function verifyOpportunity(req, res) {
             });
         }
 
-        // 2. Log in scheduler audit logs for OS viva demonstration
+        // 2. Log in scheduler audit logs for audit trail
         await connection.query(
             `INSERT INTO scheduler_audit_logs 
              (internship_id, action_type, old_queue, new_queue, aging_score_applied, reason)
@@ -181,8 +181,6 @@ async function triggerScraperCycle(req, res) {
  * ==============================================================================
  * 5. TRIGGER AGING & SCHEDULING CYCLE (POST /api/admin/trigger-aging)
  * ==============================================================================
- * For live viva demonstration! Allows admin / student presenter to simulate
- * clock ticks and demonstrate dynamic aging, quantum expiration, and starvation rescue.
  */
 async function triggerAgingCycle(req, res) {
     const { time_step_hours, force_epoch_boost, starvation_threshold } = req.body || {};
@@ -196,14 +194,14 @@ async function triggerAgingCycle(req, res) {
 
         return res.json({
             success: true,
-            message: `Operating System scheduling cycle executed! Evaluated ${results.totalEvaluated} drives.`,
+            message: `Placement optimization cycle executed! Evaluated ${results.totalEvaluated} drives.`,
             cycleSummary: results
         });
     } catch (error) {
         console.error('Error triggering aging cycle:', error);
         return res.status(500).json({
             success: false,
-            message: 'Error executing OS scheduling cycle: ' + error.message
+            message: 'Error executing optimization cycle: ' + error.message
         });
     }
 }
@@ -212,7 +210,6 @@ async function triggerAgingCycle(req, res) {
  * ==============================================================================
  * 6. GET OS TELEMETRY DASHBOARD (GET /api/admin/os-telemetry)
  * ==============================================================================
- * Returns live MLFQ queue distributions, starving drives, and audit log history.
  */
 async function getOSTelemetry(req, res) {
     try {
@@ -225,7 +222,7 @@ async function getOSTelemetry(req, res) {
         console.error('Error fetching OS telemetry:', error);
         return res.status(500).json({
             success: false,
-            message: 'Error retrieving OS telemetry.'
+            message: 'Error retrieving system telemetry.'
         });
     }
 }
@@ -234,8 +231,6 @@ async function getOSTelemetry(req, res) {
  * ==============================================================================
  * 7. SYNC KRISHAN KUMAR LINKEDIN FEED (POST /api/admin/sync-linkedin-creator)
  * ==============================================================================
- * Curates 100% authentic tech internships from Krishan Kumar (@krishan-kumar08).
- * Filters strictly for the keyword 'internship' (or custom keyword).
  */
 async function syncLinkedInCreator(req, res) {
     const { keyword, raw_text } = req.body || {};
@@ -260,6 +255,95 @@ async function syncLinkedInCreator(req, res) {
     }
 }
 
+/**
+ * ==============================================================================
+ * 8. GET ACTIVE LISTED DRIVES (GET /api/admin/active-drives)
+ * ==============================================================================
+ * Returns all verified opportunities currently active on student feeds.
+ * Also runs automated background cleanup for expired deadlines!
+ */
+async function getActiveDrives(req, res) {
+    try {
+        // Automatically expire drives where deadline has passed
+        await pool.query(
+            "UPDATE internships SET verification_status = 'REJECTED' WHERE deadline IS NOT NULL AND deadline < NOW() AND verification_status = 'VERIFIED'"
+        );
+
+        const [drives] = await pool.query(
+            `SELECT i.id, i.title, i.company_name, i.work_mode, i.location,
+                    i.stipend_amount, i.min_cgpa, i.eligible_branches, i.apply_url,
+                    i.description, i.source, i.created_at, i.deadline,
+                    s.apply_clicks, s.total_impressions
+             FROM internships i
+             LEFT JOIN mlfq_scheduler_state s ON i.id = s.internship_id
+             WHERE i.verification_status = 'VERIFIED'
+             ORDER BY i.created_at DESC`
+        );
+
+        return res.json({
+            success: true,
+            count: drives.length,
+            drives
+        });
+    } catch (error) {
+        console.error('Error fetching active drives:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Database error fetching active drives.'
+        });
+    }
+}
+
+/**
+ * ==============================================================================
+ * 9. REMOVE / ARCHIVE ACTIVE DRIVE (DELETE /api/admin/internships/:id)
+ * ==============================================================================
+ * TPO can remove any active drive from student feeds immediately.
+ */
+async function removeActiveInternship(req, res) {
+    const internshipId = parseInt(req.params.id);
+
+    if (!internshipId || isNaN(internshipId)) {
+        return res.status(400).json({
+            success: false,
+            message: 'Invalid internship ID.'
+        });
+    }
+
+    try {
+        const [updateRes] = await pool.query(
+            "UPDATE internships SET verification_status = 'REJECTED' WHERE id = ?",
+            [internshipId]
+        );
+
+        if (updateRes.affectedRows === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Opportunity not found.'
+            });
+        }
+
+        // Log removal in audit logs
+        await pool.query(
+            `INSERT INTO scheduler_audit_logs 
+             (internship_id, action_type, old_queue, new_queue, aging_score_applied, reason)
+             VALUES (?, 'QUANTUM_EXPIRE_DEMOTE', 0, 2, 0.00, 'Manually removed by TPO Placement Cell')`,
+            [internshipId]
+        );
+
+        return res.json({
+            success: true,
+            message: `Opportunity #${internshipId} has been successfully removed from the student portal.`
+        });
+    } catch (error) {
+        console.error('Error removing internship:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Database error removing opportunity.'
+        });
+    }
+}
+
 module.exports = {
     getModerationQueue,
     verifyOpportunity,
@@ -267,5 +351,7 @@ module.exports = {
     triggerScraperCycle,
     triggerAgingCycle,
     getOSTelemetry,
-    syncLinkedInCreator
+    syncLinkedInCreator,
+    getActiveDrives,
+    removeActiveInternship
 };

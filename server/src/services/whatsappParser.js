@@ -204,37 +204,6 @@ function parseSingleOpportunity(textSnippet, targetUrl) {
     let company_name = '';
     let title = '';
 
-    // Check for explicit "Company: ..."
-    const companyMatch = cleanText.match(/(?:company|firm|org)[\s:=-]*([A-Za-z0-9\s&.-]+?)(?:\n|,|$)/i);
-    if (companyMatch && companyMatch[1] && companyMatch[1].trim().length > 1) {
-        company_name = cleanTitleString(companyMatch[1]);
-    }
-
-    // Check for explicit "Role: ..."
-    const titleMatch = cleanText.match(/(?:role|designation|position|profile|title)[\s:=-]*([A-Za-z0-9\s&.-]+?)(?:\n|,|$)/i);
-    if (titleMatch && titleMatch[1] && titleMatch[1].trim().length > 2) {
-        title = cleanTitleString(titleMatch[1]);
-    } else {
-        const rolePatterns = [
-            /Full[\s-]?Stack\s+(?:Developer|Intern|Engineer)/i,
-            /Software\s+(?:Developer|Engineer|Intern)/i,
-            /SDE[\s-]?(?:Intern|Trainee|I)?/i,
-            /Backend\s+(?:Developer|Engineer|Intern)/i,
-            /Frontend\s+(?:Developer|Engineer|Intern)/i,
-            /Data\s+(?:Analyst|Scientist|Engineer)\s*Intern/i,
-            /Embedded\s+(?:Systems|Firmware|Hardware)\s*Intern/i,
-            /AI\s*\/\s*ML\s*Intern/i
-        ];
-        for (const pattern of rolePatterns) {
-            const m = cleanText.match(pattern);
-            if (m) {
-                title = cleanTitleString(m[0]);
-                break;
-            }
-        }
-    }
-
-    // Check line headers with delimiter: e.g. "VISA – Intern" or "Stripe - Software Engineer"
     const RESERVED_KEYWORDS = [
         'stipend', 'salary', 'package', 'ctc', 'pay',
         'deadline', 'last date', 'apply by',
@@ -248,6 +217,19 @@ function parseSingleOpportunity(textSnippet, targetUrl) {
         'about us', 'note', 'batch', 'campus'
     ];
 
+    // Priority 1: Check for explicit "Company: ..."
+    const companyMatch = cleanText.match(/(?:company|firm|org)[\s:=-]*([A-Za-z0-9\s&.-]+?)(?:\n|,|$)/i);
+    if (companyMatch && companyMatch[1] && companyMatch[1].trim().length > 1) {
+        company_name = cleanTitleString(companyMatch[1]);
+    }
+
+    // Priority 2: Check for explicit "Role: ..."
+    const titleMatch = cleanText.match(/(?:role|designation|position|profile|title)[\s:=-]*([A-Za-z0-9\s&.-]+?)(?:\n|,|$)/i);
+    if (titleMatch && titleMatch[1] && titleMatch[1].trim().length > 2) {
+        title = cleanTitleString(titleMatch[1]);
+    }
+
+    // Priority 3: Check line headers with delimiter: e.g. "VISA – Intern" or "Stripe – Software Engineer, Intern" or "Google - Software Engineer, Payments"
     if (!company_name || !title) {
         const lines = cleanText.split('\n').map(l => l.trim()).filter(Boolean);
         const delimiterRegex = /[\u2013\u2014\-|/]/;
@@ -269,6 +251,27 @@ function parseSingleOpportunity(textSnippet, targetUrl) {
                         title = rPart;
                     }
                 }
+            }
+        }
+    }
+
+    // Priority 4: Fallback role regex patterns if title still missing
+    if (!title) {
+        const rolePatterns = [
+            /Full[\s-]?Stack\s+(?:Developer|Intern|Engineer)/i,
+            /Software\s+(?:Developer|Engineer|Intern)/i,
+            /SDE[\s-]?(?:Intern|Trainee|I)?/i,
+            /Backend\s+(?:Developer|Engineer|Intern)/i,
+            /Frontend\s+(?:Developer|Engineer|Intern)/i,
+            /Data\s+(?:Analyst|Scientist|Engineer)\s*Intern/i,
+            /Embedded\s+(?:Systems|Firmware|Hardware)\s*Intern/i,
+            /AI\s*\/\s*ML\s*Intern/i
+        ];
+        for (const pattern of rolePatterns) {
+            const m = cleanText.match(pattern);
+            if (m) {
+                title = cleanTitleString(m[0]);
+                break;
             }
         }
     }

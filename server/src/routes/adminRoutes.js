@@ -8,7 +8,9 @@ const {
     triggerScraperCycle,
     triggerAgingCycle,
     getOSTelemetry,
-    syncLinkedInCreator
+    syncLinkedInCreator,
+    getActiveDrives,
+    removeActiveInternship
 } = require('../controllers/adminController');
 
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
@@ -53,7 +55,7 @@ router.post(
     triggerScraperCycle
 );
 
-// 5. Trigger OS aging and MLFQ cycle on demand (Viva Demonstration)
+// 5. Trigger OS aging and prioritization cycle
 router.post(
     '/trigger-aging',
     authenticateToken,
@@ -61,7 +63,7 @@ router.post(
     triggerAgingCycle
 );
 
-// 6. Get live OS scheduling telemetry and audit logs
+// 6. Get live system telemetry and audit logs
 router.get(
     '/os-telemetry',
     authenticateToken,
@@ -75,6 +77,22 @@ router.post(
     authenticateToken,
     authorizeRoles('ADMIN'),
     syncLinkedInCreator
+);
+
+// 8. Get all active listed drives (runs auto-expiration for passed deadlines)
+router.get(
+    '/active-drives',
+    authenticateToken,
+    authorizeRoles('ADMIN'),
+    getActiveDrives
+);
+
+// 9. TPO Manual Removal of any listed internship
+router.delete(
+    '/internships/:id',
+    authenticateToken,
+    authorizeRoles('ADMIN'),
+    removeActiveInternship
 );
 
 module.exports = router;

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Send, Sparkles, AlertCircle, CheckCircle, Clock, Eye, 
-  Layers, Check, ExternalLink, RefreshCw, PlusCircle
+  Layers, Check, ExternalLink, RefreshCw, FileText
 } from 'lucide-react';
 
 export default function FacultyPortal({ user, token }) {
@@ -39,7 +39,7 @@ export default function FacultyPortal({ user, token }) {
   // Handle WhatsApp Preview Parsing
   const handleParsePreview = async () => {
     if (!rawText.trim()) {
-      alert('Please paste raw WhatsApp circular text first.');
+      alert('Please paste raw circular text first.');
       return;
     }
 
@@ -93,7 +93,7 @@ export default function FacultyPortal({ user, token }) {
         });
         setParsedResult(null);
         setRawText('');
-        loadMyDrives(); // Refresh my posted drives table
+        loadMyDrives();
       } else {
         setSubmitMessage({ type: 'error', text: data.message });
       }
@@ -106,34 +106,34 @@ export default function FacultyPortal({ user, token }) {
 
   return (
     <div className="space-y-6">
-      {/* 1. FACULTY HEADER */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+      {/* 1. FACULTY COORDINATOR HEADER */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800 border border-indigo-200">
-              Faculty Placement Coordinator Portal
+              Department Placement Coordinator
             </span>
-            <h1 className="text-xl font-bold text-slate-900 mt-1">{user?.full_name}</h1>
-            <p className="text-sm text-slate-600">
-              Departmental Placement & Internship Intelligence Desk • GEHU Bhimtal
+            <h1 className="text-2xl font-bold text-slate-900 mt-1">{user?.full_name}</h1>
+            <p className="text-xs text-slate-600">
+              Departmental Placement & Internship Intelligence Desk • Graphic Era Hill University, Bhimtal
             </p>
           </div>
-          <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-center">
-            <span className="text-xs text-slate-500 uppercase tracking-wider block font-medium">My Ingested Drives</span>
-            <span className="text-lg font-bold text-indigo-700">{myDrives.length}</span>
+          <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-center">
+            <span className="text-3xs text-slate-500 uppercase tracking-wider block font-semibold">Total Circulars Ingested</span>
+            <span className="text-xl font-black text-indigo-700">{myDrives.length}</span>
           </div>
         </div>
       </div>
 
-      {/* 2. WHATSAPP CIRCULAR INGESTION DESK */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+      {/* 2. WHATSAPP NOTICE INGESTION AREA */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
         <div>
           <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-indigo-600" />
-            WhatsApp Circular Ingestion & Heuristic Extraction
+            <FileText className="w-5 h-5 text-indigo-600" />
+            WhatsApp Circular Ingestion Desk
           </h2>
           <p className="text-xs text-slate-600 mt-0.5">
-            Paste raw text from departmental WhatsApp messages. Automatically segments multi-link digests (e.g. Visa, Stripe, Google) and infers missing skills and CGPA cutoffs.
+            Paste raw text messages from departmental WhatsApp groups. Handles single drives as well as multi-link lists (e.g. Visa, Stripe, Google) with 0 details.
           </p>
         </div>
 
@@ -142,21 +142,21 @@ export default function FacultyPortal({ user, token }) {
           value={rawText}
           onChange={e => setRawText(e.target.value)}
           placeholder="Paste raw WhatsApp announcement here...&#10;e.g.&#10;VISA – Intern&#10;https://visa.wd5.myworkdayjobs.com/...&#10;&#10;Stripe – Software Engineer, Intern&#10;https://stripe.com/careers/..."
-          className="w-full text-xs p-3 font-mono bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-indigo-500 focus:bg-white transition"
+          className="w-full text-xs p-3.5 font-mono bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-600 focus:bg-white transition"
         />
 
         <div className="flex items-center justify-between">
           <button
             onClick={() => setRawText(`Intern\nAbout Us Visa is a world leader in payments technology...\n\nVISA – Intern\nhttps://visa.wd5.myworkdayjobs.com/en-US/Visa_Talent_Portal/job/Intern_REF084196W\n\nStripe – Software Engineer, Intern\nhttps://stripe.com/careers/listing/software-engineer-intern/8031833\n\nGoogle – Software Engineer, Payments\nhttps://www.google.com/about/careers/applications/jobs/results/143561253581660870-software-engineer/`)}
-            className="text-xs text-indigo-700 hover:underline font-medium"
+            className="text-xs text-indigo-700 hover:underline font-semibold"
           >
-            Load Sample Real WhatsApp Circular
+            Load Sample WhatsApp Notice
           </button>
 
           <button
             onClick={handleParsePreview}
             disabled={parsing || !rawText.trim()}
-            className="px-4 py-2 bg-indigo-700 hover:bg-indigo-800 disabled:opacity-50 text-white font-semibold text-xs rounded-lg transition flex items-center gap-1.5 shadow-sm"
+            className="px-4 py-2.5 bg-indigo-700 hover:bg-indigo-800 disabled:opacity-50 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5 shadow-sm"
           >
             {parsing ? 'Extracting Data...' : 'Preview Extracted Opportunities'}
             <Send className="w-3.5 h-3.5" />
@@ -165,11 +165,11 @@ export default function FacultyPortal({ user, token }) {
 
         {/* PARSED PREVIEW RESULTS */}
         {parsedResult && (
-          <div className="mt-4 pt-4 border-t border-slate-200 space-y-4">
+          <div className="mt-4 pt-4 border-t border-slate-100 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="px-2.5 py-1 rounded bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200">
-                  Detected {parsedResult.count} Opportunity Block{parsedResult.count > 1 ? 's' : ''}
+                <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200">
+                  Detected {parsedResult.count} Distinct Opportunity{parsedResult.count > 1 ? 's' : ''}
                 </span>
                 <span className="text-xs text-slate-500">Review details before sending to TPO verification queue.</span>
               </div>
@@ -177,7 +177,7 @@ export default function FacultyPortal({ user, token }) {
               <button
                 onClick={handleSubmitBatch}
                 disabled={submitting}
-                className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs rounded-lg transition flex items-center gap-1.5 shadow-sm"
+                className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5 shadow-sm"
               >
                 {submitting ? 'Submitting...' : `1-Click Submit All ${parsedResult.count} Drives to TPO`}
                 <Check className="w-4 h-4" />
@@ -186,24 +186,24 @@ export default function FacultyPortal({ user, token }) {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {parsedResult.opportunities.map((opp, idx) => (
-                <div key={idx} className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs space-y-2">
+                <div key={idx} className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200">{opp.company_name}</span>
-                    <span className="text-slate-500 text-3xs font-mono">Job #{idx + 1}</span>
+                    <span className="text-slate-500 text-3xs font-mono">Drive #{idx + 1}</span>
                   </div>
-                  <div className="font-semibold text-slate-800 text-sm">{opp.title}</div>
+                  <div className="font-bold text-slate-900 text-sm">{opp.title}</div>
                   <div className="text-slate-600 line-clamp-2 text-3xs">{opp.description}</div>
                   
-                  <div className="pt-1 border-t border-slate-200 grid grid-cols-2 gap-1 text-3xs text-slate-600">
-                    <div><strong>Min CGPA:</strong> {opp.min_cgpa || '0.0 (All)'}</div>
+                  <div className="pt-2 border-t border-slate-200 grid grid-cols-2 gap-1 text-3xs text-slate-600">
+                    <div><strong>Min Cutoff:</strong> {opp.min_cgpa || '0.0 (Open)'}</div>
                     <div><strong>Branches:</strong> {opp.eligible_branches}</div>
                     <div><strong>Stipend:</strong> {opp.stipend_amount}</div>
-                    <div><strong>Deadline:</strong> +14 Days</div>
+                    <div><strong>Deadline:</strong> 14 Days</div>
                   </div>
 
                   <div className="flex flex-wrap gap-1 pt-1">
                     {opp.required_skills?.map((sk, ski) => (
-                      <span key={ski} className="px-1.5 py-0.5 rounded text-3xs bg-indigo-50 text-indigo-700 border border-indigo-200">
+                      <span key={ski} className="px-1.5 py-0.5 rounded text-3xs bg-indigo-50 text-indigo-700 border border-indigo-200 font-medium">
                         {sk}
                       </span>
                     ))}
@@ -215,23 +215,23 @@ export default function FacultyPortal({ user, token }) {
         )}
 
         {submitMessage && (
-          <div className={`p-3 rounded-lg text-xs flex items-center gap-2 ${submitMessage.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'}`}>
+          <div className={`p-3 rounded-xl text-xs flex items-center gap-2 ${submitMessage.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'}`}>
             <CheckCircle className="w-4 h-4 shrink-0" />
             <span>{submitMessage.text}</span>
           </div>
         )}
       </div>
 
-      {/* 3. MY SUBMITTED DRIVES TELEMETRY TABLE */}
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+      {/* 3. MY SUBMITTED DRIVES TABLE */}
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
         <div className="p-4 border-b border-slate-100 flex items-center justify-between">
           <div>
             <h2 className="text-base font-bold text-slate-900">Submitted Circulars & Student Engagement</h2>
-            <p className="text-xs text-slate-500">Real-time status tracking in TPO Moderation & Operating System Queue.</p>
+            <p className="text-xs text-slate-500">Track moderation approval status and student application clicks.</p>
           </div>
           <button 
             onClick={loadMyDrives} 
-            className="p-1.5 hover:bg-slate-100 rounded text-slate-600 transition"
+            className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition"
             title="Refresh"
           >
             <RefreshCw className="w-4 h-4" />
@@ -242,30 +242,29 @@ export default function FacultyPortal({ user, token }) {
           <table className="w-full text-xs text-left">
             <thead className="bg-slate-50 text-slate-700 uppercase font-semibold text-3xs border-b border-slate-100">
               <tr>
-                <th className="px-4 py-3">Opportunity</th>
-                <th className="px-4 py-3">Eligibility</th>
-                <th className="px-4 py-3">TPO Gate Status</th>
-                <th className="px-4 py-3">OS MLFQ Priority</th>
-                <th className="px-4 py-3">Student Apply Clicks</th>
-                <th className="px-4 py-3">Date Posted</th>
+                <th className="px-4 py-3">Opportunity Details</th>
+                <th className="px-4 py-3">Academic Criteria</th>
+                <th className="px-4 py-3">Review Status</th>
+                <th className="px-4 py-3">Student Applications</th>
+                <th className="px-4 py-3">Date Ingested</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loadingDrives ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-8 text-slate-400">Loading drives...</td>
+                  <td colSpan={5} className="text-center py-8 text-slate-400">Loading your circulars...</td>
                 </tr>
               ) : myDrives.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-8 text-slate-400">
-                    No circulars submitted yet. Paste a WhatsApp message above to submit your first drive!
+                  <td colSpan={5} className="text-center py-8 text-slate-400">
+                    No circulars submitted yet. Paste a WhatsApp message above to post your first drive!
                   </td>
                 </tr>
               ) : (
                 myDrives.map(drive => (
                   <tr key={drive.id} className="hover:bg-slate-50 transition">
                     <td className="px-4 py-3">
-                      <div className="font-semibold text-slate-900">{drive.title}</div>
+                      <div className="font-bold text-slate-900">{drive.title}</div>
                       <div className="text-slate-500 text-3xs">{drive.company_name} • {drive.work_mode}</div>
                     </td>
                     <td className="px-4 py-3 text-slate-600">
@@ -273,17 +272,13 @@ export default function FacultyPortal({ user, token }) {
                       <div className="text-3xs text-slate-400">{drive.eligible_branches}</div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded text-3xs font-bold border ${drive.verification_status === 'VERIFIED' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : drive.verification_status === 'REJECTED' ? 'bg-rose-50 text-rose-800 border-rose-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>
-                        {drive.verification_status}
+                      <span className={`px-2.5 py-0.5 rounded-full text-3xs font-bold border ${drive.verification_status === 'VERIFIED' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : drive.verification_status === 'REJECTED' ? 'bg-rose-50 text-rose-800 border-rose-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>
+                        {drive.verification_status === 'VERIFIED' ? 'Active on Student Feed' : drive.verification_status === 'REJECTED' ? 'Archived' : 'Under TPO Review'}
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="font-mono text-slate-800 font-semibold">Queue {drive.current_queue ?? 0}</span>
-                      <span className="text-3xs text-slate-400 block">48h Quantum</span>
-                    </td>
-                    <td className="px-4 py-3">
                       <span className="font-bold text-slate-900">{drive.apply_clicks ?? 0}</span>
-                      <span className="text-slate-400 text-3xs block">applicants clicked</span>
+                      <span className="text-slate-400 text-3xs block">students clicked apply</span>
                     </td>
                     <td className="px-4 py-3 text-slate-500 text-3xs">
                       {new Date(drive.created_at).toLocaleDateString()}
