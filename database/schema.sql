@@ -21,9 +21,30 @@ CREATE TABLE IF NOT EXISTS users (
     full_name VARCHAR(100) NOT NULL,
     user_type ENUM('STUDENT', 'FACULTY', 'ADMIN') NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    active_session_token VARCHAR(255) NULL,
+    active_device_info VARCHAR(255) NULL,
+    last_active_at TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_user_type (user_type),
     INDEX idx_user_email (email)
+) ENGINE=InnoDB;
+
+-- ------------------------------------------------------------------------------
+-- 1B. EMAIL VERIFICATIONS TABLE (OTP Authentication Gate)
+-- Stores 6-digit one-time passwords for first-time GEHU student onboarding.
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS email_verifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(150) NOT NULL,
+    roll_number VARCHAR(50) NOT NULL,
+    otp_code VARCHAR(10) NOT NULL,
+    otp_hash VARCHAR(255) NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    is_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    attempts INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_verif_email (email),
+    INDEX idx_verif_roll (roll_number)
 ) ENGINE=InnoDB;
 
 -- ------------------------------------------------------------------------------
