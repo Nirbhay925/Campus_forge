@@ -3,24 +3,40 @@ const nodemailer = require('nodemailer');
 const bcrypt = require('bcryptjs');
 const { pool } = require('../config/db');
 
-// Transporter configuration (supports custom college SMTP or Gmail)
+/**
+ * Configure email transporter for Graphic Era placement cell.
+ * Supports:
+ * - Direct Gmail integration (EMAIL_SERVICE=gmail, EMAIL_USER, EMAIL_PASS)
+ * - Custom College / Institutional SMTP (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS)
+ */
 function getTransporter() {
-    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    const user = process.env.EMAIL_USER || process.env.SMTP_USER;
+    const pass = process.env.EMAIL_PASS || process.env.SMTP_PASS;
+
+    if (!user || !pass) {
+        return null;
+    }
+
+    // Gmail service preset (fastest, standard)
+    if (process.env.EMAIL_SERVICE === 'gmail' || (!process.env.SMTP_HOST && user.includes('@gmail.com'))) {
         return nodemailer.createTransport({
-            host: process.env.SMTP_HOST,
-            port: parseInt(process.env.SMTP_PORT, 10) || 587,
-            secure: process.env.SMTP_SECURE === 'true',
-            auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS
-            }
+            service: 'gmail',
+            auth: { user, pass }
         });
     }
-    return null;
+
+    // Custom institutional SMTP host
+    return nodemailer.createTransport({
+        host: process.env.SMTP_HOST || 'smtp.gmail.com',
+        port: parseInt(process.env.SMTP_PORT, 10) || 587,
+        secure: process.env.SMTP_SECURE === 'true' || process.env.SMTP_PORT === '465',
+        auth: { user, pass }
+    });
 }
 
 /**
  * Generate and dispatch a 6-digit OTP for initial student registration.
+ * Dispatches a real email to the student's @gehu.ac.in inbox.
  */
 async function generateAndSaveOTP({ email, roll_number }) {
     const cleanEmail = email.toLowerCase().trim();
@@ -48,53 +64,61 @@ async function generateAndSaveOTP({ email, roll_number }) {
             [cleanEmail, cleanRollNo, otpCode, otpHash, expiresAt]
         );
 
-        // 4. Dispatch Email via SMTP if configured
+        // 4. Dispatch Real Email via Transporter
         const transporter = getTransporter();
         let emailDelivered = false;
+        const sender = process.env.SMTP_FROM || process.env.EMAIL_USER || process.env.SMTP_USER || 'placement@gehu.ac.in';
 
         if (transporter) {
             try {
-                await transporter.sendMail({
-                    from: `"Graphic Era Placement Cell" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+                const info = await transporter.sendMail({
+                    from: `"Graphic Era Placement Cell" <${sender}>`,
                     to: cleanEmail,
                     subject: 'CampusForge: Your Graphic Era Student Verification Code',
                     html: `
                         <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
-                            <h2 style="color: #0f172a; margin-top: 0;">Graphic Era Hill University</h2>
-                            <p style="color: #475569; font-size: 14px;">Training & Placement Cell • CampusForge Portal</p>
-                            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
-                            <p style="color: #1e293b; font-size: 15px;">Hello Student,</p>
-                            <p style="color: #334155; font-size: 14px;">Your one-time verification code to activate your placement account for Roll Number <strong>${cleanRollNo}</strong> is:</p>
-                            <div style="background: #f1f5f9; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 16px; text-align: center; margin: 20px 0;">
-                                <span style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #1e3a8a;">${otpCode}</span>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <h2 style="color: #0f172a; margin: 0; font-size: 20px;">Graphic Era Hill University</h2>
                             </div>
-                            <p style="color: #64748b; font-size: 12px;">This code is valid for 10 minutes. This verification is required only once for account creation. Never share this code with anyone.</p>
-                            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
-                            <p style="color: #94a3b8; font-size: 11px;">Bhimtal Campus, Graphic Era Hill University</p>
+                            <p style="color: #475569; font-size: 13px; margin: 4px 0 0 0;">Training & Placement Cell (TPO) • CampusForge Portal</p>
+                            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 18px 0;" />
+                            <p style="color: #1e293b; font-size: 15px; margin-bottom: 8px;">Hello Graphic Era Student,</p>
+                            <p style="color: #334155; font-size: 14px; line-height: 1.5;">
+                                Your one-time verification code to activate your placement account for University Roll Number <strong>${cleanRollNo}</strong> is:
+                            </p>
+                            <div style="background: #f8fafc; border: 2px dashed #94a3b8; border-radius: 8px; padding: 18px; text-align: center; margin: 22px 0;">
+                                <span style="font-size: 34px; font-weight: 800; letter-spacing: 8px; color: #1e3a8a; font-family: monospace;">${otpCode}</span>
+                            </div>
+                            <p style="color: #64748b; font-size: 12px; line-height: 1.5;">
+                                ⏱️ This code is valid for <strong>10 minutes</strong>. This verification is required only once during account creation. In the future, you will sign in directly with your password.
+                            </p>
+                            <p style="color: #ef4444; font-size: 12px; margin-top: 6px;">
+                                ⚠️ Never share this verification code with anyone.
+                            </p>
+                            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 18px 0;" />
+                            <p style="color: #94a3b8; font-size: 11px; margin: 0;">Graphic Era Hill University, Bhimtal Campus • Uttarakhand</p>
                         </div>
                     `
                 });
                 emailDelivered = true;
+                console.log(`\n📧 [EMAIL DISPATCH SUCCESS] Real verification code delivered to ${cleanEmail}`);
+                console.log(`   MessageId: ${info.messageId}\n`);
             } catch (mailErr) {
-                console.warn('⚠️ SMTP send error (falling back to console):', mailErr.message);
+                console.error('\n❌ [EMAIL DISPATCH ERROR] Failed sending to', cleanEmail, ':', mailErr.message);
+                console.error('   Please check your EMAIL_USER and EMAIL_PASS in server/.env\n');
             }
+        } else {
+            console.warn('\n⚠️ [SMTP CONFIGURATION NOTICE] No email sender configured in server/.env.');
+            console.warn('   To send real emails to student inboxes, add EMAIL_USER and EMAIL_PASS to server/.env');
+            console.log(`🔑 [SERVER CONSOLE DEBUG] Generated OTP for ${cleanEmail} (Roll ${cleanRollNo}): ${otpCode}\n`);
         }
-
-        // 5. Always log OTP to server console for testing convenience
-        console.log('\n=============================================================');
-        console.log('🔑 [CAMPUSFORGE GEHU AUTH] ONE-TIME VERIFICATION CODE:');
-        console.log(`   Email:        ${cleanEmail}`);
-        console.log(`   Roll Number:  ${cleanRollNo}`);
-        console.log(`   6-Digit OTP:  ${otpCode}`);
-        console.log(`   Expires in:   10 minutes`);
-        console.log('=============================================================\n');
 
         return {
             success: true,
+            email_delivered: emailDelivered,
             message: emailDelivered 
-                ? `Verification code sent to ${cleanEmail}. Please check your inbox.`
-                : `Verification code generated for ${cleanEmail}. (Check server console for local testing code: ${otpCode})`,
-            dev_otp: otpCode // Enables local testing without SMTP server setup
+                ? `Verification code has been sent to your Graphic Era email inbox (${cleanEmail}). Please check your inbox and spam folder.`
+                : `Verification code generated for ${cleanEmail}. Please check your college inbox.`
         };
 
     } finally {
@@ -141,7 +165,7 @@ async function verifyOTP({ email, otp_code }) {
         if (new Date() > new Date(record.expires_at)) {
             return {
                 success: false,
-                message: 'This verification code has expired. Please request a new one.'
+                message: 'This verification code has expired. Please request a new code.'
             };
         }
 

@@ -83,8 +83,7 @@ async function requestRegistrationOTP(req, res) {
 
         return res.json({
             success: true,
-            message: otpResult.message,
-            dev_otp: otpResult.dev_otp
+            message: otpResult.message
         });
 
     } catch (error) {

@@ -30,7 +30,6 @@ export default function App() {
   const [signupDept, setSignupDept] = useState('CSE');
   const [signupBatch, setSignupBatch] = useState('2028');
   const [signupOtp, setSignupOtp] = useState('');
-  const [devOtpHint, setDevOtpHint] = useState(null);
   const [loadingSignup, setLoadingSignup] = useState(false);
   const [signupError, setSignupError] = useState(null);
   const [signupSuccess, setSignupSuccess] = useState(null);
@@ -99,7 +98,6 @@ export default function App() {
   const handleRequestOtp = async (e) => {
     e.preventDefault();
     setSignupError(null);
-    setDevOtpHint(null);
 
     if (!signupName.trim() || !signupRoll.trim() || !signupEmail.trim() || !signupPassword) {
       setSignupError('Please complete all required fields.');
@@ -127,9 +125,6 @@ export default function App() {
       if (data.success) {
         setSignupStep(2);
         setSignupSuccess(data.message);
-        if (data.dev_otp) {
-          setDevOtpHint(data.dev_otp);
-        }
       } else {
         setSignupError(data.message);
       }
@@ -646,17 +641,10 @@ export default function App() {
                             </p>
                           </div>
 
-                          {devOtpHint && (
-                            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-900 space-y-1">
-                              <span className="font-bold flex items-center gap-1">
-                                <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                                Local Development OTP Helper:
-                              </span>
-                              <p className="text-xs">
-                                Verification Code: <strong className="font-mono text-sm bg-blue-100 px-2 py-0.5 rounded text-blue-950">{devOtpHint}</strong>
-                              </p>
-                            </div>
-                          )}
+                          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-600 flex items-start gap-2">
+                            <Mail className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                            <span>Please check your college email inbox and spam/junk folder for the verification email.</span>
+                          </div>
 
                           <form onSubmit={handleVerifyOtpAndRegister} className="space-y-4">
                             <div>
