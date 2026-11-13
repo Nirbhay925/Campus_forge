@@ -75,9 +75,11 @@ async function generateAndSaveOTP({ email, roll_number }) {
         if (transporter) {
             try {
                 const info = await transporter.sendMail({
-                    from: `"Graphic Era Placement Cell" <${sender}>`,
+                    from: `"CampusForge Portal" <${sender}>`,
+                    replyTo: sender,
                     to: cleanEmail,
-                    subject: 'CampusForge: Your Graphic Era Student Verification Code',
+                    subject: `CampusForge Verification Code: ${otpCode}`,
+                    text: `Hello Student,\n\nYour one-time verification code for CampusForge is: ${otpCode}\n\nThis code is valid for 10 minutes.\n\nGraphic Era Hill University, Bhimtal Campus`,
                     html: `
                         <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
                             <div style="display: flex; align-items: center; gap: 8px;">
@@ -85,7 +87,7 @@ async function generateAndSaveOTP({ email, roll_number }) {
                             </div>
                             <p style="color: #475569; font-size: 13px; margin: 4px 0 0 0;">Training & Placement Cell (TPO) • CampusForge Portal</p>
                             <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 18px 0;" />
-                            <p style="color: #1e293b; font-size: 15px; margin-bottom: 8px;">Hello Graphic Era Student,</p>
+                            <p style="color: #1e293b; font-size: 15px; margin-bottom: 8px;">Hello Student,</p>
                             <p style="color: #334155; font-size: 14px; line-height: 1.5;">
                                 Your one-time verification code to activate your placement account for University Roll Number <strong>${cleanRollNo}</strong> is:
                             </p>
