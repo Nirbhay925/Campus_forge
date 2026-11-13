@@ -10,8 +10,11 @@ const { pool } = require('../config/db');
  * - Custom College / Institutional SMTP (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS)
  */
 function getTransporter() {
-    const user = process.env.EMAIL_USER || process.env.SMTP_USER;
-    const pass = process.env.EMAIL_PASS || process.env.SMTP_PASS;
+    const rawUser = process.env.EMAIL_USER || process.env.SMTP_USER || '';
+    const rawPass = process.env.EMAIL_PASS || process.env.SMTP_PASS || '';
+
+    const user = rawUser.trim();
+    const pass = rawPass.replace(/\s+/g, '').trim();
 
     if (!user || !pass) {
         return null;
